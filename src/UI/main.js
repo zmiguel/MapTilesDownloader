@@ -42,15 +42,28 @@ $(function() {
 
 	};
 
+	// Add this object with continent boundaries
+	const regionBoundaries = {
+		'world': [[-180, -85], [180, 85]],
+		'north-america': [[-170, 15], [-50, 85]],
+		'south-america': [[-85, -60], [-30, 15]],
+		'europe': [[-15, 35], [40, 70]],
+		'africa': [[-20, -40], [55, 38]],
+		'asia': [[40, 0], [150, 80]],
+		'oceania': [[110, -50], [180, 0]],
+		'antarctica': [[-180, -90], [180, -60]]
+	};
+
 	function initializeMap() {
 
-		mapboxgl.accessToken = 'pk.eyJ1IjoiYWxpYXNocmFmIiwiYSI6ImNqdXl5MHV5YTAzNXI0NG51OWFuMGp4enQifQ.zpd2gZFwBTRqiapp1yci9g';
+		// Use the token fetched from the server
+		mapboxgl.accessToken = window.mapboxToken || '';
 
 		map = new mapboxgl.Map({
 			container: 'map-view',
 			style: 'mapbox://styles/aliashraf/ck6lw9nr80lvo1ipj8zovttdx',
-			center: [-73.983652, 40.755024], 
-			zoom: 12
+			center: [0, 0],
+			zoom: 1
 		});
 
 		geocoder = new MapboxGeocoder({ accessToken: mapboxgl.accessToken });
@@ -119,32 +132,157 @@ $(function() {
 	}
 
 	function initializeRectangleTool() {
-		
+
 		var modes = MapboxDraw.modes;
 		modes.draw_rectangle = DrawRectangle.default;
 
 		draw = new MapboxDraw({
-			modes: modes
+			modes: modes,
+			displayControlsDefault: false,
+			controls: {
+				polygon: false,
+				trash: true
+			}
 		});
 		map.addControl(draw);
 
 		map.on('draw.create', function (e) {
 			M.Toast.dismissAll();
+			// Enable export button when a shape is created
+			$("#export-geojson-button").removeClass('disabled');
+		});
+
+		map.on('draw.delete', function(e) {
+			// Disable export button when all shapes are deleted
+			if (draw.getAll().features.length === 0) {
+				$("#export-geojson-button").addClass('disabled');
+			}
 		});
 
 		$("#rectangle-draw-button").click(function() {
-			startDrawing();
-		})
+			startDrawing('rectangle');
+		});
 
+		// Add handler for polygon drawing button
+		$("#polygon-draw-button").click(function() {
+			startDrawing('polygon');
+		});
+
+			// Replace the region selector event handler with this fixed implementation
+		$("#regionSelector").change(function() {
+			const regionValue = $(this).val();
+			const bounds = regionBoundaries[regionValue];
+
+			if (bounds) {
+				removeGrid();
+				draw.deleteAll();
+
+				M.Toast.dismissAll();
+
+				// Create a feature representing the selected region bounds
+				var regionCoords = [
+					[bounds[0][0], bounds[1][1]], // Top left [lng, lat]
+					[bounds[1][0], bounds[1][1]], // Top right
+					[bounds[1][0], bounds[0][1]], // Bottom right
+					[bounds[0][0], bounds[0][1]], // Bottom left
+					[bounds[0][0], bounds[1][1]]  // Close the polygon
+				];
+
+				// Create a feature in the format expected by MapboxDraw
+				var regionFeature = {
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Polygon',
+						coordinates: [regionCoords]
+					}
+				};
+
+				// Add the feature to the draw object
+				draw.add(regionFeature);
+
+				// Create a bounds object to fit the map view
+				var boundingBox = new mapboxgl.LngLatBounds(
+					[bounds[0][0], bounds[0][1]], // Southwest corner
+					[bounds[1][0], bounds[1][1]]  // Northeast corner
+				);
+
+				// Fit the map to the bounds with some padding
+				map.fitBounds(boundingBox, { padding: 40 });
+
+				// Display a message
+				M.toast({html: regionValue + ' region selected', displayLength: 3000});
+			}
+		});
+
+		// Add handler for GeoJSON export button
+		$("#export-geojson-button").click(function() {
+			exportGeoJSON();
+		});
 	}
 
-	function startDrawing() {
+	// Add function to export the current shape as GeoJSON
+	function exportGeoJSON() {
+		if (draw.getAll().features.length === 0) {
+			M.toast({html: 'No shape to export. Draw a shape first.', displayLength: 3000});
+			return;
+		}
+
+		// Get the GeoJSON for the current selection
+		var data = draw.getAll();
+
+		// Add some metadata to help with CLI usage
+		var bounds = getBounds();
+		data.metadata = {
+			bounds: [
+				bounds.getSouthWest().lng,
+				bounds.getSouthWest().lat,
+				bounds.getNorthEast().lng,
+				bounds.getNorthEast().lat
+			],
+			center: [bounds.getCenter().lng, bounds.getCenter().lat],
+			minZoom: getMinZoom(),
+			maxZoom: getMaxZoom(),
+			timestamp: Date.now()
+		};
+
+		// Convert to string
+		var dataStr = JSON.stringify(data, null, 2);
+
+		// Create a downloadable link
+		var dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+		var filename = "map-selection-" + data.metadata.timestamp + ".geojson";
+
+		// Create a temporary link and trigger the download
+		var link = document.createElement('a');
+		link.setAttribute('href', dataUri);
+		link.setAttribute('download', filename);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+
+		// Show instructions for using the exported file
+		M.toast({
+			html: 'GeoJSON exported! Use with CLI: <br/>' +
+			      '<code>python src/cli.py download --geojson ' + filename + ' ...</code>',
+			displayLength: 10000
+		});
+	}
+
+	function startDrawing(mode) {
 		removeGrid();
 		draw.deleteAll();
-		draw.changeMode('draw_rectangle');
 
-		M.Toast.dismissAll();
-		M.toast({html: 'Click two points on the map to make a rectangle.', displayLength: 7000})
+		if (mode === 'polygon') {
+			draw.changeMode('draw_polygon');
+			M.Toast.dismissAll();
+			M.toast({html: 'Click points on the map to create a polygon. Click the first point to close the shape.', displayLength: 7000})
+		} else {
+			// Default to rectangle
+			draw.changeMode('draw_rectangle');
+			M.Toast.dismissAll();
+			M.toast({html: 'Click two points on the map to make a rectangle.', displayLength: 7000})
+		}
 	}
 
 	function initializeGridPreview() {
@@ -430,7 +568,7 @@ $(function() {
 			return;
 		}
 
-		cancellationToken = false; 
+		cancellationToken = false;
 		requests = [];
 
 		$("#main-sidebar").hide();
@@ -456,7 +594,7 @@ $(function() {
 		var bounds = getBounds();
 		var boundsArray = [bounds.getSouthWest().lng, bounds.getSouthWest().lat, bounds.getNorthEast().lng, bounds.getNorthEast().lat]
 		var centerArray = [bounds.getCenter().lng, bounds.getCenter().lat, getMaxZoom()]
-		
+
 		var data = new FormData();
 		data.append('minZoom', getMinZoom())
 		data.append('maxZoom', getMaxZoom())
@@ -472,7 +610,7 @@ $(function() {
 		var request = await $.ajax({
 			url: "/start-download",
 			async: true,
-			timeout: 30 * 1000,
+			timeout: 300 * 1000,
 			type: "post",
 			contentType: false,
 			processData: false,
@@ -508,7 +646,7 @@ $(function() {
 			var request = $.ajax({
 				"url": url,
 				async: true,
-				timeout: 30 * 1000,
+				timeout: 300 * 1000,
 				type: "post",
 			    contentType: false,
 			    processData: false,
@@ -522,7 +660,7 @@ $(function() {
 
 				if(data.code == 200) {
 					showTinyTile(data.image)
-					logItem(item.x, item.y, item.z, data.message);
+					//logItem(item.x, item.y, item.z, data.message);
 				} else {
 					logItem(item.x, item.y, item.z, data.code + " Error downloading tile");
 				}
@@ -543,7 +681,7 @@ $(function() {
 				updateProgress(i, allTiles.length);
 
 				done();
-				
+
 				if(cancellationToken) {
 					return;
 				}
@@ -556,7 +694,7 @@ $(function() {
 			var request = await $.ajax({
 				url: "/end-download",
 				async: true,
-				timeout: 30 * 1000,
+				timeout: 300 * 1000,
 				type: "post",
 				contentType: false,
 				processData: false,

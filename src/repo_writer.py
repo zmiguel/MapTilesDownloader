@@ -1,10 +1,5 @@
 import sqlite3
 import os
-from os import listdir
-from os.path import isfile, join
-import multiprocessing
-from PIL import Image
-import io
 from utils import Utils
 
 from mbtiles_writer import MbtilesWriter
@@ -20,7 +15,7 @@ class RepoWriter(MbtilesWriter):
 		c = connection.cursor()
 		c.execute("CREATE TABLE IF NOT EXISTS metadata (name text, value text);")
 		c.execute("CREATE TABLE IF NOT EXISTS tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob, tile_cropped_data blob, pixel_left real, pixel_top real, pixel_right real, pixel_bottom real, has_alpha INTEGER);")
-		
+
 		try:
 			c.execute("CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);")
 		except:
@@ -30,24 +25,24 @@ class RepoWriter(MbtilesWriter):
 			c.execute("CREATE UNIQUE INDEX metadata_name ON metadata (name);")
 		except:
 			pass
-		
+
 		connection.commit()
-		
+
 		c = connection.cursor()
 
-		
+
 		try:
 			c.executemany("INSERT INTO metadata (name, value) VALUES (?, ?);", [
 				("name", name),
 				("description", description),
-				("format", format), 
-				("bounds", ','.join(map(str, bounds))), 
-				("center", ','.join(map(str, center))), 
-				("minzoom", minZoom), 
-				("maxzoom", maxZoom), 
-				("profile", profile), 
-				("tilesize", str(tileSize)), 
-				("scheme", "tms"), 
+				("format", format),
+				("bounds", ','.join(map(str, bounds))),
+				("center", ','.join(map(str, center))),
+				("minzoom", minZoom),
+				("maxzoom", maxZoom),
+				("profile", profile),
+				("tilesize", str(tileSize)),
+				("scheme", "tms"),
 				("generator", "Map Tiles Downloader via AliFlux"),
 				("type", "overlay"),
 				("attribution", "Map Tiles Downloader via AliFlux"),
@@ -68,7 +63,7 @@ class RepoWriter(MbtilesWriter):
 		tileData = []
 		with open(sourcePath, "rb") as readFile:
 			tileData = readFile.read()
-		
+
 		lock.acquire()
 		try:
 

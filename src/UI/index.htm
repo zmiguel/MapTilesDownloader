@@ -6,7 +6,7 @@
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 
 	<!-- TODO replace jquery with react -->
-	<script src="jquery.min.js"></script> 
+	<script src="jquery.min.js"></script>
 
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.css' rel='stylesheet' />
@@ -21,18 +21,39 @@
 	<script src="async.min.js"></script>
 	<script src="turf.min.js"></script>
 
-	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600,600i,700,700i" rel="stylesheet"> 
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600,600i,700,700i" rel="stylesheet">
 	<script src="materialize/js/materialize.min.js"></script>
 	<link href='materialize/css/materialize.min.css' rel='stylesheet' type='text/css' />
 
-	<script src="main.js"></script>
+	<script>
+		// Fetch the Mapbox token from the server before initializing
+		fetch('/mapbox-token')
+			.then(response => response.json())
+			.then(data => {
+				// Set the Mapbox token
+				window.mapboxToken = data.token;
+
+				// Now load the main script that will use this token
+				const script = document.createElement('script');
+				script.src = 'main.js';
+				document.head.appendChild(script);
+			})
+			.catch(error => {
+				console.error('Error fetching Mapbox token:', error);
+				// Fallback to load main.js anyway
+				const script = document.createElement('script');
+				script.src = 'main.js';
+				document.head.appendChild(script);
+			});
+	</script>
+
 	<link href='fonts/fonts.css' rel='stylesheet' type='text/css' />
 	<link href='style.css' rel='stylesheet' type='text/css' />
 </head>
 <body>
 
 	<div id='max-height'>
-		
+
 		<div id='map-view'></div>
 
 		<div id='main-title'>Map Tiles Downloader</div>
@@ -45,32 +66,34 @@
 			1
 		</div>
 		<div class="step-title">
-			Search an Area
-		</div>
-
-		<form id='search-form' class='sidebar-section row'>
-			<div class="input-field col s12">
-				<input id="location-box" type="text" value="New York" />
-				<label for="location-box">Enter a location</label>
-			</div>
-		</form>
-
-
-		<div class='step-number'>
-			2
-		</div>
-		<div class="step-title">
 			Select a Region
 		</div>
 
 		<div class='center-align sidebar-section'>
 			<p>
 				<a class="waves-effect waves-light z-depth-0 btn-small orange darken-3" id='rectangle-draw-button'>Draw a rectangle</a>
+				<a class="waves-effect waves-light z-depth-0 btn-small blue darken-2" id='polygon-draw-button'>Draw a polygon</a>
+				<a class="waves-effect waves-light z-depth-0 btn-small green darken-2 disabled" id='export-geojson-button'>Export GeoJSON</a>
+			</p>
+			<p>
+				<div class="input-field">
+					<select id="regionSelector">
+						<option value="world">Select World</option>
+						<option value="north-america">North America</option>
+						<option value="south-america">South America</option>
+						<option value="europe">Europe</option>
+						<option value="africa">Africa</option>
+						<option value="asia">Asia</option>
+						<option value="oceania">Australia/Oceania</option>
+						<option value="antarctica">Antarctica</option>
+					</select>
+					<label>Select Region</label>
+				</div>
 			</p>
 		</div>
 
 		<div class='step-number'>
-			3
+			2
 		</div>
 		<div class="step-title">
 			Configure
@@ -109,7 +132,7 @@
 		</div>
 
 		<div class='step-number'>
-			4
+			3
 		</div>
 		<div class="step-title">
 			<a href='javascript:void(0)' id='more-options-toggle'>More Options (+)</a>
@@ -157,7 +180,7 @@
 	<div class='sidebar' id='download-sidebar' style="display: none;">
 
 		<div class='step-number'>
-			5
+			4
 		</div>
 		<div class="step-title">
 			Downloading tiles
@@ -168,18 +191,18 @@
 
 		<div class="sidebar-section">
 			<div id='progress-radial' class=''>
-	
+
 			</div>
-	
+
 			<p id='progress-subtitle' class=''>
-	
+
 			</p>
-	
+
 			<p class='tile-strip '>
 			</p>
 
 		</div>
-	
+
 		<textarea id='log-view' class="sidebar-section"></textarea>
 
 		<button class='waves-effect waves-light z-depth-0 btn-large red lighten-5 bottom-button' id='stop-button'>Stop</button>

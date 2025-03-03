@@ -1,14 +1,9 @@
 import sqlite3
 import os
-from os import listdir
-from os.path import isfile, join
-import multiprocessing
-from PIL import Image
-import io
 from utils import Utils
 
 class MbtilesWriter:
-	
+
 	def ensureDirectory(lock, directory):
 
 		lock.acquire()
@@ -37,7 +32,7 @@ class MbtilesWriter:
 		c = connection.cursor()
 		c.execute("CREATE TABLE IF NOT EXISTS metadata (name text, value text);")
 		c.execute("CREATE TABLE IF NOT EXISTS tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);")
-		
+
 		try:
 			c.execute("CREATE UNIQUE INDEX tile_index on tiles (zoom_level, tile_column, tile_row);")
 		except:
@@ -47,21 +42,21 @@ class MbtilesWriter:
 			c.execute("CREATE UNIQUE INDEX metadata_name ON metadata (name);")
 		except:
 			pass
-		
+
 		connection.commit()
-		
+
 		try:
 			c.executemany("INSERT INTO metadata (name, value) VALUES (?, ?);", [
 				("name", name),
 				("description", description),
-				("format", format), 
-				("bounds", ','.join(map(str, bounds))), 
-				("center", ','.join(map(str, center))), 
-				("minzoom", minZoom), 
-				("maxzoom", maxZoom), 
-				("profile", profile), 
-				("tilesize", str(tileSize)), 
-				("scheme", "tms"), 
+				("format", format),
+				("bounds", ','.join(map(str, bounds))),
+				("center", ','.join(map(str, center))),
+				("minzoom", minZoom),
+				("maxzoom", maxZoom),
+				("profile", profile),
+				("tilesize", str(tileSize)),
+				("scheme", "tms"),
 				("generator", "Map Tiles Downloader via AliFlux"),
 				("type", "overlay"),
 				("attribution", "Map Tiles Downloader via AliFlux"),
@@ -71,7 +66,7 @@ class MbtilesWriter:
 		except:
 			pass
 
-		
+
 
 	@staticmethod
 	def addTile(lock, filePath, sourcePath, x, y, z, outputScale):
@@ -84,7 +79,7 @@ class MbtilesWriter:
 		tileData = []
 		with open(sourcePath, "rb") as readFile:
 			tileData = readFile.read()
-		
+
 		lock.acquire()
 		try:
 
@@ -107,7 +102,7 @@ class MbtilesWriter:
 		invertedY = (2 ** z) - y - 1
 
 		if(os.path.exists(filePath)):
-			
+
 			connection = sqlite3.connect(filePath, check_same_thread=False)
 			c = connection.cursor()
 
@@ -141,7 +136,7 @@ class MbtilesWriter:
 
 		center = [(minLon + maxLon)/2, (minLat + maxLat)/2, maxZoom]
 		centerString = ','.join(map(str, center))
-	
+
 		c.execute("UPDATE metadata SET value = ? WHERE name = 'bounds'", [boundsString])
 		c.execute("UPDATE metadata SET value = ? WHERE name = 'center'", [centerString])
 

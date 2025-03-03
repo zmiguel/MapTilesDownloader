@@ -1,14 +1,12 @@
-import sqlite3
 import os
-import multiprocessing
-import io
 import json
 import shutil
 
 class FileWriter:
 
 	slicer = None
-	
+
+	@staticmethod
 	def ensureDirectory(lock, directory):
 
 		lock.acquire()
@@ -35,19 +33,19 @@ class FileWriter:
 		data = [
 			("name", name),
 			("description", description),
-			("format", format), 
-			("bounds", ','.join(map(str, bounds))), 
-			("center", ','.join(map(str, center))), 
-			("minzoom", minZoom), 
-			("maxzoom", maxZoom), 
-			("profile", profile), 
-			("tilesize", str(tileSize)), 
-			("scheme", "xyz"), 
+			("format", format),
+			("bounds", ','.join(map(str, bounds))),
+			("center", ','.join(map(str, center))),
+			("minzoom", minZoom),
+			("maxzoom", maxZoom),
+			("profile", profile),
+			("tilesize", str(tileSize)),
+			("scheme", "xyz"),
 			("generator", "EliteMapper by Visor Dynamics"),
 			("type", "overlay"),
 			("attribution", "EliteMapper by Visor Dynamics"),
 		]
-		
+
 		with open(path + "/metadata.json", 'w+') as jsonFile:
 			json.dump(dict(data), jsonFile)
 
@@ -58,7 +56,7 @@ class FileWriter:
 
 		fileDirectory = os.path.dirname(filePath)
 		FileWriter.ensureDirectory(lock, fileDirectory)
-		
+
 		shutil.copyfile(sourcePath, filePath)
 
 		return
@@ -70,5 +68,5 @@ class FileWriter:
 
 	@staticmethod
 	def close(lock, path, file, minZoom, maxZoom):
-		#TODO recalculate bounds and center
+		# TODO actually implement this rather than just having a comment
 		return
