@@ -36,13 +36,13 @@ A utility for downloading map tiles from various tile services.
 Docker is a pretty simple way to install and contain applications. [Install Docker on your system](https://www.docker.com/products/docker-desktop), and paste this on your command line:
 
 ```sh
-docker run -v $PWD/output:/app/output/ -p 8080:8080 -it aliashraf/map-tiles-downloader
+docker run -v $PWD/output:/app/output/ -p 8080:8080 -it ghcr.io/zmiguel/maptilesdownloader
 ```
 
 To use your own Mapbox access token (recommended for production use):
 
 ```sh
-docker run -v $PWD/output:/app/output/ -p 8080:8080 -e MAPBOX_ACCESS_TOKEN=your_mapbox_token_here -it aliashraf/map-tiles-downloader
+docker run -v $PWD/output:/app/output/ -p 8080:8080 -e MAPBOX_ACCESS_TOKEN=your_mapbox_token_here -it ghcr.io/zmiguel/maptilesdownloader
 ```
 
 Now open the browser and head over to `http://localhost:8080`. The downloaded maps will be stored in the `output` directory.
